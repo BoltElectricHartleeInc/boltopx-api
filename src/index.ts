@@ -20,6 +20,12 @@ import dispatchRoutes from "./routes/dispatch";
 import performanceRoutes from "./routes/performance";
 import notificationsRoutes from "./routes/notifications";
 import reportsRoutes from "./routes/reports";
+import tasksRoutes from "./routes/tasks";
+import photosRoutes from "./routes/photos";
+import leadsRoutes from "./routes/leads";
+import templatesRoutes from "./routes/templates";
+import paymentsRoutes from "./routes/payments";
+import recurringRoutes from "./routes/recurring";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "4000", 10);
@@ -31,6 +37,7 @@ app.use(cors({
     "http://localhost:3000",
     "https://boltelectricnfl.com",
     "https://bolt-opx.vercel.app",
+    "https://boltopx-web.vercel.app",
     "http://192.168.5.227:3001",
   ],
   credentials: true,
@@ -56,6 +63,12 @@ app.use("/api", dispatchRoutes);
 app.use("/api", performanceRoutes);
 app.use("/api", notificationsRoutes);
 app.use("/api", reportsRoutes);
+app.use("/api", tasksRoutes);
+app.use("/api", photosRoutes);
+app.use("/api", leadsRoutes);
+app.use("/api", templatesRoutes);
+app.use("/api", paymentsRoutes);
+app.use("/api", recurringRoutes);
 
 // Global error handler
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -63,8 +76,11 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ error: "Internal server error" });
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`[boltopx-api] Running on 0.0.0.0:${PORT}`);
-});
+// Only start the server when not running in serverless (Vercel)
+if (!process.env.VERCEL) {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[boltopx-api] Running on 0.0.0.0:${PORT}`);
+  });
+}
 
 export default app;
