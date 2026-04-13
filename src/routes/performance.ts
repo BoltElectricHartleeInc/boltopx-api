@@ -19,7 +19,7 @@ router.get("/performance/technicians", requireAuth, async (req: Request, res: Re
     const [jobCount, completedCount, revenue, avgDuration] = await Promise.all([
       prisma.job.count({ where: { technicianId: tech.id, createdAt: { gte: from, lte: to }, deletedAt: null } }),
       prisma.job.count({ where: { technicianId: tech.id, status: { in: ["completed", "invoiced"] }, createdAt: { gte: from, lte: to }, deletedAt: null } }),
-      prisma.invoice.aggregate({ where: { job: { technicianId: tech.id }, status: "paid", paidDate: { gte: from, lte: to }, deletedAt: null }, _sum: { amountPaid: true } }),
+      prisma.invoice.aggregate({ where: { job: { technicianId: tech.id }, status: "paid", OR: [{ paidDate: { gte: from, lte: to } }, { paidDate: null, updatedAt: { gte: from, lte: to } }], deletedAt: null }, _sum: { amountPaid: true } }),
       prisma.job.aggregate({ where: { technicianId: tech.id, actualDuration: { not: null }, createdAt: { gte: from, lte: to }, deletedAt: null }, _avg: { actualDuration: true } }),
     ]);
 
@@ -48,8 +48,8 @@ router.get("/performance/technician/:id", requireAuth, async (req: Request, res:
     prisma.technician.findUnique({ where: { id: techId }, select: { id: true, firstName: true, lastName: true, color: true, phone: true, position: true } }),
     prisma.job.count({ where: { technicianId: techId, createdAt: thisMonth, deletedAt: null } }),
     prisma.job.count({ where: { technicianId: techId, createdAt: lastMonth, deletedAt: null } }),
-    prisma.invoice.aggregate({ where: { job: { technicianId: techId }, status: "paid", paidDate: thisMonth, deletedAt: null }, _sum: { amountPaid: true } }),
-    prisma.invoice.aggregate({ where: { job: { technicianId: techId }, status: "paid", paidDate: lastMonth, deletedAt: null }, _sum: { amountPaid: true } }),
+    prisma.invoice.aggregate({ where: { job: { technicianId: techId }, status: "paid", OR: [{ paidDate: thisMonth }, { paidDate: null, updatedAt: thisMonth }], deletedAt: null }, _sum: { amountPaid: true } }),
+    prisma.invoice.aggregate({ where: { job: { technicianId: techId }, status: "paid", OR: [{ paidDate: lastMonth }, { paidDate: null, updatedAt: lastMonth }], deletedAt: null }, _sum: { amountPaid: true } }),
     prisma.job.findMany({ where: { technicianId: techId, deletedAt: null }, orderBy: { createdAt: "desc" }, take: 10, include: { customer: { select: { firstName: true, lastName: true } } } }),
   ]);
 

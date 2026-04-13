@@ -72,8 +72,8 @@ router.get("/analytics", async (req: Request, res: Response) => {
             (SELECT AVG("amountPaid") FROM "Invoice" WHERE status = 'paid' AND COALESCE("paidDate", "updatedAt") >= $1 AND COALESCE("paidDate", "updatedAt") <= $2 AND "deletedAt" IS NULL AND "amountPaid" > 0),
             0
           )::float AS avg_job_value,
-          COALESCE((SELECT COUNT(*) FROM "Invoice" WHERE status = 'sent' AND "dueDate" < NOW() AND "deletedAt" IS NULL), 0) AS overdue_count,
-          COALESCE((SELECT SUM("total") FROM "Invoice" WHERE status = 'sent' AND "dueDate" < NOW() AND "deletedAt" IS NULL), 0)::float AS overdue_amount,
+          COALESCE((SELECT COUNT(*) FROM "Invoice" WHERE status IN ('sent', 'overdue', 'partial') AND "dueDate" < NOW() AND "deletedAt" IS NULL), 0) AS overdue_count,
+          COALESCE((SELECT SUM("total") FROM "Invoice" WHERE status IN ('sent', 'overdue', 'partial') AND "dueDate" < NOW() AND "deletedAt" IS NULL), 0)::float AS overdue_amount,
           (SELECT COUNT(*) FROM "Estimate" WHERE status = 'pending' AND "deletedAt" IS NULL) AS pending_estimates,
           (SELECT COUNT(*) FROM "Job" WHERE status = 'assigned' AND "technicianId" IS NULL AND "deletedAt" IS NULL) AS unassigned_jobs,
           (SELECT COUNT(*) FROM "Job" WHERE "createdAt" >= $5 AND "createdAt" <= $6 AND "deletedAt" IS NULL) AS today_jobs,

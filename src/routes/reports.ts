@@ -17,7 +17,7 @@ router.get("/reports/revenue", requireAuth, async (req: Request, res: Response) 
       const to = endOfMonth(monthDate);
 
       return prisma.invoice.aggregate({
-        where: { status: "paid", paidDate: { gte: from, lte: to }, deletedAt: null },
+        where: { status: "paid", OR: [{ paidDate: { gte: from, lte: to } }, { paidDate: null, updatedAt: { gte: from, lte: to } }], deletedAt: null },
         _sum: { amountPaid: true },
         _count: true,
       }).then(r => ({
@@ -103,11 +103,11 @@ router.get("/reports/financial", requireAuth, async (req: Request, res: Response
   const lastMonth = { gte: startOfMonth(subMonths(now, 1)), lte: endOfMonth(subMonths(now, 1)) };
 
   const [thisRev, lastRev, outstanding, overdue, paidThisMonth, avgInvoice] = await Promise.all([
-    prisma.invoice.aggregate({ where: { status: "paid", paidDate: thisMonth, deletedAt: null }, _sum: { amountPaid: true } }),
-    prisma.invoice.aggregate({ where: { status: "paid", paidDate: lastMonth, deletedAt: null }, _sum: { amountPaid: true } }),
+    prisma.invoice.aggregate({ where: { status: "paid", OR: [{ paidDate: thisMonth }, { paidDate: null, updatedAt: thisMonth }], deletedAt: null }, _sum: { amountPaid: true } }),
+    prisma.invoice.aggregate({ where: { status: "paid", OR: [{ paidDate: lastMonth }, { paidDate: null, updatedAt: lastMonth }], deletedAt: null }, _sum: { amountPaid: true } }),
     prisma.invoice.aggregate({ where: { deletedAt: null, total: { gt: prisma.invoice.fields?.amountPaid as any || 0 } }, _sum: { total: true } }),
-    prisma.invoice.count({ where: { status: "sent", dueDate: { lt: new Date() }, deletedAt: null } }),
-    prisma.invoice.count({ where: { status: "paid", paidDate: thisMonth, deletedAt: null } }),
+    prisma.invoice.count({ where: { status: { in: ["sent", "overdue"] }, dueDate: { lt: new Date() }, deletedAt: null } }),
+    prisma.invoice.count({ where: { status: "paid", OR: [{ paidDate: thisMonth }, { paidDate: null, updatedAt: thisMonth }], deletedAt: null } }),
     prisma.invoice.aggregate({ where: { status: "paid", deletedAt: null }, _avg: { amountPaid: true } }),
   ]);
 
