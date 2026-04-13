@@ -106,28 +106,18 @@ router.post("/voip/webhook/inbound", async (req: Request, res: Response) => {
     update: { status: CallStatus },
   });
 
-  // Smart routing: customer's tech → available techs → owner → voicemail
-  const routeResult = await smartRoute(customer?.id || null);
+  // Forward ALL inbound calls to the business line
+  const forwardTo = process.env.TWILIO_FORWARD_TO || "+19047013312";
 
   // Auto-record ALL calls
   const recordAttrs = `record="record-from-answer-dual" recordingStatusCallback="/api/voip/webhook/recording" recordingStatusCallbackEvent="completed"`;
 
-  if (routeResult.type === "technician" && routeResult.phone) {
-    res.type("text/xml").send(`<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Dial timeout="20" callerId="${To}" action="/api/voip/webhook/dial-fallback" ${recordAttrs}>
-    <Number>${routeResult.phone}</Number>
-  </Dial>
-</Response>`);
-  } else {
-    const ownerPhone = process.env.LUMEN_OWNER_PHONE || process.env.TWILIO_FORWARD_TO;
-    res.type("text/xml").send(`<?xml version="1.0" encoding="UTF-8"?>
+  res.type("text/xml").send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Dial timeout="25" callerId="${To}" action="/api/voip/webhook/dial-fallback" ${recordAttrs}>
-    <Number>${ownerPhone}</Number>
+    <Number>${forwardTo}</Number>
   </Dial>
 </Response>`);
-  }
 });
 
 // ── Smart routing logic ──────────────────────────────────────
