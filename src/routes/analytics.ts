@@ -57,8 +57,8 @@ router.get("/analytics", async (req: Request, res: Response) => {
     const [kpiRow, revenueChart, callVolume] = await Promise.all([
       prisma.$queryRawUnsafe<any[]>(`
         SELECT
-          COALESCE((SELECT SUM("amountPaid") FROM "Invoice" WHERE status = 'paid' AND "paidDate" >= $1 AND "paidDate" <= $2 AND "deletedAt" IS NULL), 0)::float AS cur_revenue,
-          COALESCE((SELECT SUM("amountPaid") FROM "Invoice" WHERE status = 'paid' AND "paidDate" >= $3 AND "paidDate" <= $4 AND "deletedAt" IS NULL), 0)::float AS prev_revenue,
+          COALESCE((SELECT SUM("amountPaid") FROM "Invoice" WHERE status = 'paid' AND COALESCE("paidDate", "updatedAt") >= $1 AND COALESCE("paidDate", "updatedAt") <= $2 AND "deletedAt" IS NULL), 0)::float AS cur_revenue,
+          COALESCE((SELECT SUM("amountPaid") FROM "Invoice" WHERE status = 'paid' AND COALESCE("paidDate", "updatedAt") >= $3 AND COALESCE("paidDate", "updatedAt") <= $4 AND "deletedAt" IS NULL), 0)::float AS prev_revenue,
           (SELECT COUNT(*) FROM "Job" WHERE "createdAt" >= $1 AND "createdAt" <= $2 AND "deletedAt" IS NULL AND "workizId" IS NULL) AS cur_jobs,
           (SELECT COUNT(*) FROM "Job" WHERE "createdAt" >= $3 AND "createdAt" <= $4 AND "deletedAt" IS NULL AND "workizId" IS NULL) AS prev_jobs,
           COALESCE((SELECT COUNT(*) FROM "PhoneCall" WHERE "createdAt" >= $1 AND "createdAt" <= $2), 0) AS cur_calls,
@@ -69,7 +69,7 @@ router.get("/analytics", async (req: Request, res: Response) => {
           (SELECT COUNT(*) FROM "Job" WHERE status IN ('completed', 'invoiced') AND "createdAt" >= $1 AND "createdAt" <= $2 AND "deletedAt" IS NULL) AS completed_jobs,
           COALESCE(
             NULLIF((SELECT AVG("total") FROM "Estimate" WHERE status = 'accepted' AND "createdAt" >= $1 AND "createdAt" <= $2 AND "deletedAt" IS NULL), 0),
-            (SELECT AVG("amountPaid") FROM "Invoice" WHERE status = 'paid' AND "paidDate" >= $1 AND "paidDate" <= $2 AND "deletedAt" IS NULL AND "amountPaid" > 0),
+            (SELECT AVG("amountPaid") FROM "Invoice" WHERE status = 'paid' AND COALESCE("paidDate", "updatedAt") >= $1 AND COALESCE("paidDate", "updatedAt") <= $2 AND "deletedAt" IS NULL AND "amountPaid" > 0),
             0
           )::float AS avg_job_value,
           COALESCE((SELECT COUNT(*) FROM "Invoice" WHERE status = 'sent' AND "dueDate" < NOW() AND "deletedAt" IS NULL), 0) AS overdue_count,
@@ -84,9 +84,9 @@ router.get("/analytics", async (req: Request, res: Response) => {
       `, from, to, prevFrom, prevTo, todayStart, todayEnd),
 
       prisma.$queryRawUnsafe<any[]>(`
-        SELECT DATE_TRUNC('${trunc}', "paidDate")::date AS bucket_date, SUM("amountPaid")::float AS revenue
-        FROM "Invoice" WHERE status = 'paid' AND "paidDate" >= $1 AND "paidDate" <= $2 AND "deletedAt" IS NULL
-        GROUP BY DATE_TRUNC('${trunc}', "paidDate") ORDER BY bucket_date ASC
+        SELECT DATE_TRUNC('${trunc}', COALESCE("paidDate", "updatedAt"))::date AS bucket_date, SUM("amountPaid")::float AS revenue
+        FROM "Invoice" WHERE status = 'paid' AND COALESCE("paidDate", "updatedAt") >= $1 AND COALESCE("paidDate", "updatedAt") <= $2 AND "deletedAt" IS NULL
+        GROUP BY DATE_TRUNC('${trunc}', COALESCE("paidDate", "updatedAt")) ORDER BY bucket_date ASC
       `, from, to),
 
       prisma.$queryRawUnsafe<any[]>(`
