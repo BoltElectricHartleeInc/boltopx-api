@@ -34,9 +34,20 @@ router.get("/analytics", async (req: Request, res: Response) => {
     return;
   }
 
+  // Smart comparison: for ranges > 90 days, compare same period last year (YoY).
   const periodMs = to.getTime() - from.getTime();
-  const prevFrom = new Date(from.getTime() - periodMs);
-  const prevTo = new Date(from.getTime() - 1);
+  const periodDays = periodMs / (24 * 60 * 60 * 1000);
+  let prevFrom: Date;
+  let prevTo: Date;
+  if (periodDays > 90) {
+    prevFrom = new Date(from);
+    prevFrom.setFullYear(prevFrom.getFullYear() - 1);
+    prevTo = new Date(to);
+    prevTo.setFullYear(prevTo.getFullYear() - 1);
+  } else {
+    prevFrom = new Date(from.getTime() - periodMs);
+    prevTo = new Date(from.getTime() - 1);
+  }
   const trunc = pgTrunc(granularity);
   const today = new Date();
   const todayStart = startOfDay(today);
@@ -110,7 +121,11 @@ router.get("/analytics", async (req: Request, res: Response) => {
     const avgDuration = parseFloat(String(k.avg_duration)) || 0;
     const missedCalls = Number(k.missed_calls);
 
-    const pct = (c: number, p: number) => p === 0 ? 0 : ((c - p) / p) * 100;
+    const pct = (c: number, p: number) => {
+      if (p === 0 && c === 0) return 0;
+      if (p === 0) return 100;
+      return ((c - p) / p) * 100;
+    };
 
     const revChart = revenueChart.map((r: any) => ({
       date: formatBucket(new Date(r.bucket_date), granularity),
