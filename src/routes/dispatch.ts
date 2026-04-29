@@ -8,7 +8,7 @@ const router = Router();
 // ── Today's jobs for logged-in user's technician ─────────────
 router.get("/dispatch/today", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
-  const techId = user.technicianId || String(req.query.technicianId || "");
+  const techId = user.technicianId || String(Array.isArray(req.query.technicianId) ? req.query.technicianId[0] : req.query.technicianId || "");
   const today = new Date();
 
   const where: any = {

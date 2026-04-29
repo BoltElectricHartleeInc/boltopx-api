@@ -40,7 +40,7 @@ router.post("/pos/pay", requireAuth, async (req: Request, res: Response) => {
           "metadata[invoiceNumber]": invoice.invoiceNumber,
         }),
       });
-      const pi = await stripeRes.json();
+      const pi = await stripeRes.json() as any;
 
       if (pi.error) {
         res.status(400).json({ error: pi.error.message });
