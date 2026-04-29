@@ -1,17 +1,18 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { requireAuth } from "../auth";
+import { routeParam } from "../routeParam";
 
 const router = Router();
 
 // ── List calls with filtering ────────────────────────────────
 router.get("/voip/calls", requireAuth, async (req: Request, res: Response) => {
-  const page = parseInt(String(req.query.page || "")) || 1;
-  const limit = Math.min(parseInt(String(req.query.limit || "")) || 25, 100);
-  const direction = String(req.query.direction || "");
-  const status = String(req.query.status || "");
-  const from = String(req.query.from || "");
-  const to = String(req.query.to || "");
+  const page = parseInt(String(Array.isArray(req.query.page) ? req.query.page[0] : req.query.page || "")) || 1;
+  const limit = Math.min(parseInt(String(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit || "")) || 25, 100);
+  const direction = String(Array.isArray(req.query.direction) ? req.query.direction[0] : req.query.direction || "");
+  const status = String(Array.isArray(req.query.status) ? req.query.status[0] : req.query.status || "");
+  const from = String(Array.isArray(req.query.from) ? req.query.from[0] : req.query.from || "");
+  const to = String(Array.isArray(req.query.to) ? req.query.to[0] : req.query.to || "");
 
   const where: any = {};
   if (direction) where.direction = direction;
@@ -43,7 +44,7 @@ router.get("/voip/calls", requireAuth, async (req: Request, res: Response) => {
 // ── Single call detail ───────────────────────────────────────
 router.get("/voip/calls/:id", requireAuth, async (req: Request, res: Response) => {
   const call = await prisma.phoneCall.findUnique({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     include: {
       customer: true,
       technician: true,
@@ -59,8 +60,10 @@ router.get("/voip/calls/:id", requireAuth, async (req: Request, res: Response) =
 
 // ── Call metrics / analytics ─────────────────────────────────
 router.get("/voip/metrics", requireAuth, async (req: Request, res: Response) => {
-  const from = req.query.from ? new Date(String(req.query.from || "")) : new Date(new Date().setDate(new Date().getDate() - 30));
-  const to = req.query.to ? new Date(String(req.query.to || "")) : new Date();
+  const fromStr = Array.isArray(req.query.from) ? req.query.from[0] : req.query.from;
+  const toStr = Array.isArray(req.query.to) ? req.query.to[0] : req.query.to;
+  const from = fromStr ? new Date(String(fromStr)) : new Date(new Date().setDate(new Date().getDate() - 30));
+  const to = toStr ? new Date(String(toStr)) : new Date();
 
   const [total, inbound, outbound, missed, avgDuration, byHour] = await Promise.all([
     prisma.phoneCall.count({ where: { createdAt: { gte: from, lte: to } } }),
@@ -189,7 +192,7 @@ router.post("/voip/webhook/recording", async (req: Request, res: Response) => {
 
 // ── Get recording audio (proxy to avoid exposing Twilio URL) ─
 router.get("/voip/calls/:id/recording", requireAuth, async (req: Request, res: Response) => {
-  const call = await prisma.phoneCall.findUnique({ where: { id: req.params.id }, select: { recordingUrl: true } });
+  const call = await prisma.phoneCall.findUnique({ where: { id: routeParam(req, "id") }, select: { recordingUrl: true } });
   if (!call?.recordingUrl) { res.status(404).json({ error: "No recording" }); return; }
   res.json({ url: call.recordingUrl });
 });
@@ -249,7 +252,7 @@ router.post("/voip/call", requireAuth, async (req: Request, res: Response) => {
         StatusCallback: `${process.env.APP_URL || "https://api.boltopx.com"}/api/voip/webhook/status`,
       }),
     });
-    const twilioData = await twilioRes.json();
+    const twilioData = await twilioRes.json() as any;
 
     // Log the call
     const call = await prisma.phoneCall.create({
@@ -282,7 +285,7 @@ router.post("/voip/webhook/outbound-connect", (_req: Request, res: Response) => 
 // ── Add note to call ─────────────────────────────────────────
 router.post("/voip/calls/:id/note", requireAuth, async (req: Request, res: Response) => {
   const call = await prisma.phoneCall.update({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     data: { notes: req.body.notes },
   });
   res.json(call);
@@ -292,14 +295,14 @@ router.post("/voip/calls/:id/note", requireAuth, async (req: Request, res: Respo
 router.post("/voip/calls/:id/disposition", requireAuth, async (req: Request, res: Response) => {
   const disposition = await prisma.callDisposition.create({
     data: {
-      phoneCallId: req.params.id,
+      phoneCallId: routeParam(req, "id"),
       code: req.body.code,
       notes: req.body.notes,
     },
   });
   // Also update the quick disposition on the call itself
   await prisma.phoneCall.update({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     data: { dispositionCode: req.body.code },
   });
   res.json(disposition);

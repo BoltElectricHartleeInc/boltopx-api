@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { requireAuth } from "../auth";
+import { routeParam } from "../routeParam";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -36,7 +37,7 @@ router.post("/leads", requireAuth as any, async (req: Request, res: Response) =>
 
 router.put("/leads/:id", requireAuth as any, async (req: Request, res: Response) => {
   try {
-    const lead = await prisma.lead.update({ where: { id: req.params.id }, data: req.body });
+    const lead = await prisma.lead.update({ where: { id: routeParam(req, "id") }, data: req.body });
     res.json(lead);
   } catch (e: any) {
     res.status(500).json({ error: e.message });

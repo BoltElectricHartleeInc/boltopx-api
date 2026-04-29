@@ -5,7 +5,9 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "prisma generate",
+    "generate": "prisma generate",
+    "compile": "prisma generate && tsc",
+    "build": "prisma generate && tsc",
     "start": "npx tsx src/index.ts",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
@@ -14,7 +16,12 @@
     "db:studio": "prisma studio",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "verify": "npm run lint && npm run test",
+    "ci": "npm run verify"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

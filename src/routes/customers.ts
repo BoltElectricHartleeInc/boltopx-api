@@ -1,13 +1,14 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { requireAuth } from "../auth";
+import { routeParam } from "../routeParam";
 
 const router = Router();
 
 router.get("/customers", requireAuth, async (req: Request, res: Response) => {
-  const page = parseInt(String(req.query.page || "")) || 1;
-  const limit = Math.min(parseInt(String(req.query.limit || "")) || 25, 100);
-  const search = String(req.query.search || "");
+  const page = parseInt(String(Array.isArray(req.query.page) ? req.query.page[0] : req.query.page || "")) || 1;
+  const limit = Math.min(parseInt(String(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit || "")) || 25, 100);
+  const search = String(Array.isArray(req.query.search) ? req.query.search[0] : req.query.search || "");
 
   const where: any = { deletedAt: null };
   if (search) {
@@ -28,7 +29,7 @@ router.get("/customers", requireAuth, async (req: Request, res: Response) => {
 
 router.get("/customers/:id", requireAuth, async (req: Request, res: Response) => {
   const customer = await prisma.customer.findUnique({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     include: { jobs: { orderBy: { createdAt: "desc" }, take: 10 }, invoices: { orderBy: { createdAt: "desc" }, take: 10 } },
   });
   if (!customer) { res.status(404).json({ error: "Customer not found" }); return; }
@@ -41,7 +42,7 @@ router.post("/customers", requireAuth, async (req: Request, res: Response) => {
 });
 
 router.put("/customers/:id", requireAuth, async (req: Request, res: Response) => {
-  const customer = await prisma.customer.update({ where: { id: req.params.id }, data: req.body });
+  const customer = await prisma.customer.update({ where: { id: routeParam(req, "id") }, data: req.body });
   res.json(customer);
 });
 
