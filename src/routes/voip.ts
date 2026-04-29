@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { requireAuth } from "../auth";
+import { routeParam } from "../routeParam";
 
 const router = Router();
 
@@ -43,7 +44,7 @@ router.get("/voip/calls", requireAuth, async (req: Request, res: Response) => {
 // ── Single call detail ───────────────────────────────────────
 router.get("/voip/calls/:id", requireAuth, async (req: Request, res: Response) => {
   const call = await prisma.phoneCall.findUnique({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     include: {
       customer: true,
       technician: true,
@@ -191,7 +192,7 @@ router.post("/voip/webhook/recording", async (req: Request, res: Response) => {
 
 // ── Get recording audio (proxy to avoid exposing Twilio URL) ─
 router.get("/voip/calls/:id/recording", requireAuth, async (req: Request, res: Response) => {
-  const call = await prisma.phoneCall.findUnique({ where: { id: req.params.id }, select: { recordingUrl: true } });
+  const call = await prisma.phoneCall.findUnique({ where: { id: routeParam(req, "id") }, select: { recordingUrl: true } });
   if (!call?.recordingUrl) { res.status(404).json({ error: "No recording" }); return; }
   res.json({ url: call.recordingUrl });
 });
@@ -284,7 +285,7 @@ router.post("/voip/webhook/outbound-connect", (_req: Request, res: Response) => 
 // ── Add note to call ─────────────────────────────────────────
 router.post("/voip/calls/:id/note", requireAuth, async (req: Request, res: Response) => {
   const call = await prisma.phoneCall.update({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     data: { notes: req.body.notes },
   });
   res.json(call);
@@ -294,14 +295,14 @@ router.post("/voip/calls/:id/note", requireAuth, async (req: Request, res: Respo
 router.post("/voip/calls/:id/disposition", requireAuth, async (req: Request, res: Response) => {
   const disposition = await prisma.callDisposition.create({
     data: {
-      phoneCallId: req.params.id,
+      phoneCallId: routeParam(req, "id"),
       code: req.body.code,
       notes: req.body.notes,
     },
   });
   // Also update the quick disposition on the call itself
   await prisma.phoneCall.update({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     data: { dispositionCode: req.body.code },
   });
   res.json(disposition);

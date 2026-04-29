@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { requireAuth } from "../auth";
+import { routeParam } from "../routeParam";
 
 const router = Router();
 
@@ -30,7 +31,7 @@ router.get("/invoices", requireAuth, async (req: Request, res: Response) => {
 
 router.get("/invoices/:id", requireAuth, async (req: Request, res: Response) => {
   const invoice = await prisma.invoice.findUnique({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     include: { customer: true, job: true, lineItems: true, payments: true },
   });
   if (!invoice) { res.status(404).json({ error: "Invoice not found" }); return; }
@@ -43,7 +44,7 @@ router.post("/invoices", requireAuth, async (req: Request, res: Response) => {
 });
 
 router.put("/invoices/:id", requireAuth, async (req: Request, res: Response) => {
-  const invoice = await prisma.invoice.update({ where: { id: req.params.id }, data: req.body });
+  const invoice = await prisma.invoice.update({ where: { id: routeParam(req, "id") }, data: req.body });
   res.json(invoice);
 });
 

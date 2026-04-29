@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { requireAuth } from "../auth";
+import { routeParam } from "../routeParam";
 
 const router = Router();
 
@@ -42,7 +43,7 @@ router.get("/jobs", requireAuth, async (req: Request, res: Response) => {
 
 router.get("/jobs/:id", requireAuth, async (req: Request, res: Response) => {
   const job = await prisma.job.findUnique({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     include: {
       customer: true,
       technician: true,
@@ -72,7 +73,7 @@ router.post("/jobs", requireAuth, async (req: Request, res: Response) => {
 
 router.put("/jobs/:id", requireAuth, async (req: Request, res: Response) => {
   const job = await prisma.job.update({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     data: req.body,
     include: { customer: true, technician: true },
   });

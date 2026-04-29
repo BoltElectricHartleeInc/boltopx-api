@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { requireAuth } from "../auth";
+import { routeParam } from "../routeParam";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
 
 const router = Router();
@@ -31,7 +32,7 @@ router.get("/dispatch/today", requireAuth, async (req: Request, res: Response) =
 
 // ── Week view for technician ─────────────────────────────────
 router.get("/dispatch/technician/:id/week", requireAuth, async (req: Request, res: Response) => {
-  const techId = req.params.id;
+  const techId = routeParam(req, "id");
   const today = new Date();
   const weekEnd = addDays(today, 7);
 
@@ -69,7 +70,7 @@ router.post("/dispatch/job/:id/status", requireAuth, async (req: Request, res: R
     return;
   }
 
-  const job = await prisma.job.findUnique({ where: { id: req.params.id } });
+  const job = await prisma.job.findUnique({ where: { id: routeParam(req, "id") } });
   if (!job) { res.status(404).json({ error: "Job not found" }); return; }
 
   const previousStatus = job.status;
@@ -80,7 +81,7 @@ router.post("/dispatch/job/:id/status", requireAuth, async (req: Request, res: R
   if (status === "en-route") updateData.enRouteAt = new Date();
 
   const updated = await prisma.job.update({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     data: updateData,
     include: { customer: true, technician: true },
   });
@@ -88,10 +89,12 @@ router.post("/dispatch/job/:id/status", requireAuth, async (req: Request, res: R
   // Log activity
   await prisma.jobActivity.create({
     data: {
-      jobId: req.params.id,
-      action: `Status changed: ${previousStatus} → ${status}`,
-      performedBy: user.name || user.email,
-      metadata: { previousStatus, newStatus: status, notes, userId: user.id },
+      jobId: routeParam(req, "id"),
+      type: "status_change",
+      description: `Status changed: ${previousStatus} → ${status}`,
+      userName: user.name || user.email,
+      userId: user.id,
+      metadata: { previousStatus, newStatus: status, notes },
     },
   });
 
@@ -109,7 +112,7 @@ router.post("/dispatch/job/:id/assign", requireAuth, async (req: Request, res: R
   if (!tech) { res.status(404).json({ error: "Technician not found" }); return; }
 
   const job = await prisma.job.update({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     data: {
       technicianId,
       status: "assigned",
@@ -120,9 +123,11 @@ router.post("/dispatch/job/:id/assign", requireAuth, async (req: Request, res: R
 
   await prisma.jobActivity.create({
     data: {
-      jobId: req.params.id,
-      action: `Assigned to ${tech.firstName} ${tech.lastName}`,
-      performedBy: user.name || user.email,
+      jobId: routeParam(req, "id"),
+      type: "assignment",
+      description: `Assigned to ${tech.firstName} ${tech.lastName}`,
+      userName: user.name || user.email,
+      userId: user.id,
       metadata: { technicianId, assignedBy: user.id },
     },
   });
@@ -168,7 +173,7 @@ router.get("/dispatch/technicians", requireAuth, async (req: Request, res: Respo
 // ── Job activity log ─────────────────────────────────────────
 router.get("/dispatch/job/:id/activity", requireAuth, async (req: Request, res: Response) => {
   const activities = await prisma.jobActivity.findMany({
-    where: { jobId: req.params.id },
+    where: { jobId: routeParam(req, "id") },
     orderBy: { createdAt: "desc" },
     take: 50,
   });

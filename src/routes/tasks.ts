@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { requireAuth } from "../auth";
+import { routeParam } from "../routeParam";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -51,7 +52,7 @@ router.put("/tasks/:id", requireAuth as any, async (req: Request, res: Response)
     if (dueDate) data.dueDate = new Date(dueDate);
     if (technicianId) data.technicianId = technicianId;
 
-    const task = await prisma.task.update({ where: { id: req.params.id }, data });
+    const task = await prisma.task.update({ where: { id: routeParam(req, "id") }, data });
     res.json(task);
   } catch (e: any) {
     res.status(500).json({ error: e.message });

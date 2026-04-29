@@ -1,14 +1,17 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { requireAuth } from "../auth";
+import { queryFirst, routeParam } from "../routeParam";
 import { startOfMonth, endOfMonth, subMonths } from "date-fns";
 
 const router = Router();
 
 // ── Technician performance dashboard ─────────────────────────
 router.get("/performance/technicians", requireAuth, async (req: Request, res: Response) => {
-  const from = req.query.from ? new Date(String(req.query.from || "")) : startOfMonth(new Date());
-  const to = req.query.to ? new Date(String(req.query.to || "")) : endOfMonth(new Date());
+  const fromStr = queryFirst(req, "from");
+  const toStr = queryFirst(req, "to");
+  const from = fromStr ? new Date(fromStr) : startOfMonth(new Date());
+  const to = toStr ? new Date(toStr) : endOfMonth(new Date());
 
   const techs = await prisma.technician.findMany({
     where: { isActive: true },
@@ -39,7 +42,7 @@ router.get("/performance/technicians", requireAuth, async (req: Request, res: Re
 
 // ── Single tech performance detail ───────────────────────────
 router.get("/performance/technician/:id", requireAuth, async (req: Request, res: Response) => {
-  const techId = req.params.id;
+  const techId = routeParam(req, "id");
   const now = new Date();
   const thisMonth = { gte: startOfMonth(now), lte: endOfMonth(now) };
   const lastMonth = { gte: startOfMonth(subMonths(now, 1)), lte: endOfMonth(subMonths(now, 1)) };

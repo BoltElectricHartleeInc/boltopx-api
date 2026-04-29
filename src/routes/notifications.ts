@@ -83,9 +83,10 @@ router.post("/notifications/job-status", requireAuth, async (req: Request, res: 
     data: {
       type: "job_status",
       title: `Job ${job.jobNumber}: ${status}`,
-      body: message,
-      userId: (req as any).user.id,
-      metadata: { jobId, status, sms: results.sms, email: results.email },
+      message,
+      recipientType: "user",
+      recipientId: (req as any).user?.id ?? null,
+      data: { jobId, status, sms: results.sms, email: results.email },
     },
   });
 

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { requireAuth } from "../auth";
+import { routeParam } from "../routeParam";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -31,7 +32,7 @@ router.post("/recurring", requireAuth as any, async (req: Request, res: Response
 
 router.put("/recurring/:id", requireAuth as any, async (req: Request, res: Response) => {
   try {
-    const schedule = await prisma.recurringInvoiceSchedule.update({ where: { id: req.params.id }, data: req.body });
+    const schedule = await prisma.recurringInvoiceSchedule.update({ where: { id: routeParam(req, "id") }, data: req.body });
     res.json(schedule);
   } catch (e: any) {
     res.status(500).json({ error: e.message });

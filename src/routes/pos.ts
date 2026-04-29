@@ -1,9 +1,20 @@
 import { Router, Request, Response } from "express";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../db";
 import { requireAuth } from "../auth";
+import { routeParam } from "../routeParam";
 import PDFDocument from "pdfkit";
 
 const router = Router();
+
+type InvoiceReceiptPdf = Prisma.InvoiceGetPayload<{
+  include: {
+    customer: true;
+    lineItems: true;
+    payments: true;
+    job: { select: { jobNumber: true; title: true } };
+  };
+}>;
 
 // ── Process payment against invoice ──────────────────────────
 router.post("/pos/pay", requireAuth, async (req: Request, res: Response) => {
@@ -226,7 +237,7 @@ router.post("/pos/quick-invoice", requireAuth, async (req: Request, res: Respons
 // ── Payment history for invoice ──────────────────────────────
 router.get("/pos/payments/:invoiceId", requireAuth, async (req: Request, res: Response) => {
   const payments = await prisma.payment.findMany({
-    where: { invoiceId: req.params.invoiceId },
+    where: { invoiceId: routeParam(req, "invoiceId") },
     orderBy: { paidAt: "desc" },
   });
   res.json(payments);
@@ -237,29 +248,29 @@ router.post("/pos/signature/:invoiceId", requireAuth, async (req: Request, res: 
   const { signatureDataUrl } = req.body;
   if (!signatureDataUrl) { res.status(400).json({ error: "signatureDataUrl required" }); return; }
 
-  const invoice = await prisma.invoice.findUnique({ where: { id: req.params.invoiceId } });
+  const invoice = await prisma.invoice.findUnique({ where: { id: routeParam(req, "invoiceId") } });
   if (!invoice) { res.status(404).json({ error: "Invoice not found" }); return; }
 
   // Store signature data URL in notes (or a dedicated field if you add one)
   await prisma.invoice.update({
-    where: { id: req.params.invoiceId },
+    where: { id: routeParam(req, "invoiceId") },
     data: { notes: (invoice.notes || "") + `\n[SIGNATURE:${signatureDataUrl.substring(0, 50)}...]` },
   });
 
-  res.json({ status: "captured", invoiceId: req.params.invoiceId });
+  res.json({ status: "captured", invoiceId: routeParam(req, "invoiceId") });
 });
 
 // ── Generate receipt PDF ─────────────────────────────────────
 router.get("/pos/receipt/:invoiceId", requireAuth, async (req: Request, res: Response) => {
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: req.params.invoiceId },
+  const invoice = (await prisma.invoice.findUnique({
+    where: { id: routeParam(req, "invoiceId") },
     include: {
       customer: true,
       lineItems: { orderBy: { sortOrder: "asc" } },
       payments: { orderBy: { paidAt: "desc" } },
       job: { select: { jobNumber: true, title: true } },
     },
-  });
+  })) as InvoiceReceiptPdf | null;
   if (!invoice) { res.status(404).json({ error: "Invoice not found" }); return; }
 
   const doc = new PDFDocument({ size: "letter", margin: 50 });
@@ -365,7 +376,7 @@ router.post("/pos/receipt/:invoiceId/email", requireAuth, async (req: Request, r
   if (!email) { res.status(400).json({ error: "email required" }); return; }
 
   const invoice = await prisma.invoice.findUnique({
-    where: { id: req.params.invoiceId },
+    where: { id: routeParam(req, "invoiceId") },
     include: { customer: true },
   });
   if (!invoice) { res.status(404).json({ error: "Invoice not found" }); return; }
@@ -398,7 +409,7 @@ router.post("/pos/receipt/:invoiceId/email", requireAuth, async (req: Request, r
         `,
       }),
     });
-    const result = await emailRes.json();
+    const result = (await emailRes.json()) as { id?: string };
     res.json({ status: "sent", emailId: result.id, to: email });
   } catch (err) {
     res.status(500).json({ error: "Failed to send email" });

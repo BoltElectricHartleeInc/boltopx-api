@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { requireAuth } from "../auth";
+import { routeParam } from "../routeParam";
 
 const router = Router();
 
@@ -30,7 +31,7 @@ router.get("/estimates", requireAuth, async (req: Request, res: Response) => {
 
 router.get("/estimates/:id", requireAuth, async (req: Request, res: Response) => {
   const estimate = await prisma.estimate.findUnique({
-    where: { id: req.params.id },
+    where: { id: routeParam(req, "id") },
     include: { customer: true, job: true, lineItems: true },
   });
   if (!estimate) { res.status(404).json({ error: "Estimate not found" }); return; }
