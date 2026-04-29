@@ -6,12 +6,12 @@ const router = Router();
 
 // ── List calls with filtering ────────────────────────────────
 router.get("/voip/calls", requireAuth, async (req: Request, res: Response) => {
-  const page = parseInt(String(req.query.page || "")) || 1;
-  const limit = Math.min(parseInt(String(req.query.limit || "")) || 25, 100);
-  const direction = String(req.query.direction || "");
-  const status = String(req.query.status || "");
-  const from = String(req.query.from || "");
-  const to = String(req.query.to || "");
+  const page = parseInt(String(Array.isArray(req.query.page) ? req.query.page[0] : req.query.page || "")) || 1;
+  const limit = Math.min(parseInt(String(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit || "")) || 25, 100);
+  const direction = String(Array.isArray(req.query.direction) ? req.query.direction[0] : req.query.direction || "");
+  const status = String(Array.isArray(req.query.status) ? req.query.status[0] : req.query.status || "");
+  const from = String(Array.isArray(req.query.from) ? req.query.from[0] : req.query.from || "");
+  const to = String(Array.isArray(req.query.to) ? req.query.to[0] : req.query.to || "");
 
   const where: any = {};
   if (direction) where.direction = direction;
@@ -59,8 +59,10 @@ router.get("/voip/calls/:id", requireAuth, async (req: Request, res: Response) =
 
 // ── Call metrics / analytics ─────────────────────────────────
 router.get("/voip/metrics", requireAuth, async (req: Request, res: Response) => {
-  const from = req.query.from ? new Date(String(req.query.from || "")) : new Date(new Date().setDate(new Date().getDate() - 30));
-  const to = req.query.to ? new Date(String(req.query.to || "")) : new Date();
+  const fromStr = Array.isArray(req.query.from) ? req.query.from[0] : req.query.from;
+  const toStr = Array.isArray(req.query.to) ? req.query.to[0] : req.query.to;
+  const from = fromStr ? new Date(String(fromStr)) : new Date(new Date().setDate(new Date().getDate() - 30));
+  const to = toStr ? new Date(String(toStr)) : new Date();
 
   const [total, inbound, outbound, missed, avgDuration, byHour] = await Promise.all([
     prisma.phoneCall.count({ where: { createdAt: { gte: from, lte: to } } }),
@@ -249,7 +251,7 @@ router.post("/voip/call", requireAuth, async (req: Request, res: Response) => {
         StatusCallback: `${process.env.APP_URL || "https://api.boltopx.com"}/api/voip/webhook/status`,
       }),
     });
-    const twilioData = await twilioRes.json();
+    const twilioData = await twilioRes.json() as any;
 
     // Log the call
     const call = await prisma.phoneCall.create({

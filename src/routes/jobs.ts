@@ -5,10 +5,10 @@ import { requireAuth } from "../auth";
 const router = Router();
 
 router.get("/jobs", requireAuth, async (req: Request, res: Response) => {
-  const page = parseInt(String(req.query.page || "")) || 1;
-  const limit = Math.min(parseInt(String(req.query.limit || "")) || 25, 100);
-  const status = String(req.query.status || "");
-  const search = String(req.query.search || "");
+  const page = parseInt(String(Array.isArray(req.query.page) ? req.query.page[0] : req.query.page || "")) || 1;
+  const limit = Math.min(parseInt(String(Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit || "")) || 25, 100);
+  const status = String(Array.isArray(req.query.status) ? req.query.status[0] : req.query.status || "");
+  const search = String(Array.isArray(req.query.search) ? req.query.search[0] : req.query.search || "");
 
   const where: any = { deletedAt: null };
   if (status) where.status = status;
